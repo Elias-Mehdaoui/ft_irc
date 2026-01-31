@@ -1,8 +1,10 @@
-#ifndef SERVER_HPP_
-#define SERVER_HPP_
+#ifndef SERVER_HPP
+#define SERVER_HPP
 
 
 #include "Client.hpp"
+
+#define EVENTS_MAX 10
 
 class Server 
 {
@@ -13,6 +15,7 @@ class Server
         sockaddr_in _serverAddress;
         std::map<int, Client *> _clients;
         bool _is_running;
+        int _epollfd;
 
     
     public :
@@ -20,7 +23,8 @@ class Server
         ~Server();
 
         void run();
-
+        void handle_event(struct epoll_event event);
+        void new_client();
         
 
 };

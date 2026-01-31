@@ -33,3 +33,5 @@ $(OBJ_DIR)/%.o: %.cpp
 clean:
 	rm -rf $(OBJ_DIR)
 	rm -f $(EXEC)
+
+re: clean all

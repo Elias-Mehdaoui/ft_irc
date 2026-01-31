@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/epoll.h>
 
 class Client
 {

@@ -9,9 +9,10 @@ Server::Server(std::string port, std::string password): _port(atoi(port.c_str())
     {
         if (!std::isprint(*it))
             throw std::invalid_argument("Password must have only printable characters");
-;
+
     }
 
+    std::cout << htons(_port) << std::endl;
     _serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (_serverSocket == -1)
         throw std::runtime_error(std::string("socket :") + ::strerror(errno));
@@ -28,7 +29,7 @@ Server::Server(std::string port, std::string password): _port(atoi(port.c_str())
     _serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     memset(&_serverAddress.sin_zero, 0, sizeof(_serverAddress.sin_zero));
 
-    if (bind(_serverSocket, (const sockaddr *)&_serverAddress.sin_addr, sizeof(_serverAddress)) == -1)
+    if (bind(_serverSocket, (const sockaddr *)&_serverAddress, sizeof(_serverAddress)) == -1)
         throw std::runtime_error(std::string("bind :") + ::strerror(errno));
 
     if (listen(_serverSocket, 5) == -1)
@@ -42,38 +43,66 @@ Server::~Server()
 
 void Server::run()
 {
-    int max_fd, new_socket;
-    fd_set readfds, readfds_copy;
-    struct sockaddr_in client;
-    socklen_t addr_len = sizeof(client);
-    FD_ZERO(&readfds);
-    FD_SET(_serverSocket, &readfds);
-    _is_running = true;
+    int nfds;
+    struct epoll_event	ev, events[EVENTS_MAX];
+    nfds = _serverSocket;
+    _epollfd = epoll_create1(0);
 
+	if (_epollfd == -1)
+		throw std::runtime_error("Error: failed to create epoll");
+
+	memset(&ev, 0, sizeof(ev));
+	ev.events = EPOLLIN;
+	ev.data.fd = _serverSocket;
+
+	if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, _serverSocket, &ev) == -1) 
+		throw std::runtime_error("Error: failed to manage sockets");
+        
+    _is_running = true;
     while (_is_running)
     {
-        std::cout << "Debut while" << std::endl;
-        readfds_copy = readfds;
-        if (select(max_fd + 1, &readfds_copy, NULL, NULL, NULL) == -1)
+        nfds = epoll_wait(_epollfd, events, EVENTS_MAX, -1); 
+        if (nfds == -1)
             throw std::runtime_error(std::string("select :") + ::strerror(errno));
-        std::cout << "Apres select" << std::endl;
-        if (FD_ISSET(_serverSocket, &readfds))
+        for (int i = 0; i < nfds; ++i)
         {
-            std::cout << "ISSET" << std::endl;
-            new_socket = accept(_serverSocket, (sockaddr *)&client, &addr_len);
-            if (new_socket == -1)
-                throw std::runtime_error(std::string("accept :") + ::strerror(errno));
-            _clients[new_socket] = new Client(new_socket, client);
-            FD_SET(new_socket, &readfds);
-            if (new_socket > max_fd)
-                max_fd = new_socket;
-            std::cout << "New connection from " << inet_ntoa(client.sin_addr) << std::endl;
+            handle_event(events[i]);
         }
     }
+}
 
-
-
+void Server::handle_event(epoll_event event)
+{
+    if (event.data.fd = _serverSocket)
+        return (new_client());
     
+}
 
+void Server::new_client() 
+{
+    int client_socket;
+    sockaddr_in client_addr;
+    socklen_t addr_len = sizeof(client_addr);
 
+    client_socket = accept(client_socket, (sockaddr *)&client_addr, &addr_len);
+    if (client_socket == -1)
+    {
+        if (errno != EAGAIN && errno != EWOULDBLOCK)
+            throw std::runtime_error(std::string("client socket:") + ::strerror(errno)); 
+        _is_running = 0;
+    }
+
+    int flags = fcntl(client_socket, F_GETFL, 0);
+    if (flags == -1)
+        throw std::runtime_error(std::string("Get flags :") + ::strerror(errno));
+
+    if (fcntl(client_socket, F_SETFL, flags | O_NONBLOCK) == -1)
+        throw std::runtime_error(std::string("Set flags :") + ::strerror(errno));
+
+    struct epoll_event ev;
+    ev.events = EPOLLIN;
+    ev.data.fd = client_socket;
+    epoll_ctl(_epollfd, EPOLL_CTL_ADD, client_socket, &ev);
+
+    _clients[client_socket] = new Client(client_socket, client_addr);
 }
