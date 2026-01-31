@@ -29,6 +29,10 @@ Server::Server(std::string port, std::string password): _port(atoi(port.c_str())
     _serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     memset(&_serverAddress.sin_zero, 0, sizeof(_serverAddress.sin_zero));
 
+    const int optval = 1;
+    if (setsockopt(_serverSocket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) < 0)
+        throw std::runtime_error(std::string("setsockopt :") + ::strerror(errno));
+
     if (bind(_serverSocket, (const sockaddr *)&_serverAddress, sizeof(_serverAddress)) == -1)
         throw std::runtime_error(std::string("bind :") + ::strerror(errno));
 
@@ -39,7 +43,13 @@ Server::Server(std::string port, std::string password): _port(atoi(port.c_str())
 }
 
 Server::~Server()
-{}
+{
+    for (std::map<int, Client *>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+    {
+        delete(_clients[it->first]);
+    }
+    close(_serverSocket);
+}
 
 void Server::run()
 {
@@ -73,9 +83,24 @@ void Server::run()
 
 void Server::handle_event(epoll_event event)
 {
-    if (event.data.fd = _serverSocket)
-        return (new_client());
-    
+
+    if (event.data.fd == _serverSocket)
+    {
+        std::cout << "new client" << std::endl;
+        new_client();
+        return ;
+    }
+    if (event.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP))
+    {
+        std::cout << "Client " << event.data.fd << " error/shutdown" << std::endl;
+        return;
+    }
+
+    if (event.events & EPOLLIN)
+    {
+        std::cout << "fill buffer" << std::endl;
+        _clients[event.data.fd]->fill_buffer();
+    }
 }
 
 void Server::new_client() 
@@ -84,25 +109,33 @@ void Server::new_client()
     sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
-    client_socket = accept(client_socket, (sockaddr *)&client_addr, &addr_len);
-    if (client_socket == -1)
+    while ((client_socket = accept(_serverSocket, (sockaddr *)&client_addr, &addr_len)) > 0)
     {
-        if (errno != EAGAIN && errno != EWOULDBLOCK)
-            throw std::runtime_error(std::string("client socket:") + ::strerror(errno)); 
-        _is_running = 0;
+        if (client_socket == -1)
+        {
+            if (errno == EAGAIN && errno == EWOULDBLOCK)
+            {
+                std::cout << "No more pending connection" << std::endl;
+                break;
+            }
+            throw std::runtime_error(std::string("client socket:") + ::strerror(errno));
+        }
+
+        int flags = fcntl(client_socket, F_GETFL, 0);
+        if (flags == -1)
+            throw std::runtime_error(std::string("Get flags :") + ::strerror(errno));
+
+        if (fcntl(client_socket, F_SETFL, flags | O_NONBLOCK) == -1)
+            throw std::runtime_error(std::string("Set flags :") + ::strerror(errno));
+
+        struct epoll_event ev;
+        ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+        ev.data.fd = client_socket;
+        epoll_ctl(_epollfd, EPOLL_CTL_ADD, client_socket, &ev);
+
+        _clients[client_socket] = new Client(client_socket, client_addr);
+        std::cout << "New connection from client id : " << client_socket << std::endl;
+        _clients[client_socket]->fill_buffer();
     }
+} 
 
-    int flags = fcntl(client_socket, F_GETFL, 0);
-    if (flags == -1)
-        throw std::runtime_error(std::string("Get flags :") + ::strerror(errno));
-
-    if (fcntl(client_socket, F_SETFL, flags | O_NONBLOCK) == -1)
-        throw std::runtime_error(std::string("Set flags :") + ::strerror(errno));
-
-    struct epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = client_socket;
-    epoll_ctl(_epollfd, EPOLL_CTL_ADD, client_socket, &ev);
-
-    _clients[client_socket] = new Client(client_socket, client_addr);
-}

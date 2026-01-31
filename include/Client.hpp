@@ -12,6 +12,7 @@
 #include <map>
 #include <cstdlib>
 #include <unistd.h>
+#include <string>
 #include <errno.h>
 #include <sys/epoll.h>
 
@@ -22,10 +23,19 @@ class Client
         sockaddr_in _addr;
         std::string _nickname;
         std::string _username;
+        std::string _password;
+        std::string _recv_buff;
+        int _status; // 0 = didnt give password // 1 = password ok no NICK or USER // 2 registered
     
     public:
         Client(int socket, sockaddr_in addr);
         ~Client();
+        void fill_buffer();
+        void parse_buffer();
+        void parse_msg(std::string msg);
+        bool is_registered();
+        void set_status(int status);
+
 
 };
 
