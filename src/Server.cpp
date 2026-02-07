@@ -88,6 +88,7 @@ void Server::handle_event(epoll_event event)
     {
         std::cout << "new client" << std::endl;
         new_client();
+        parse_buffer(_clients[event.data.fd]);
         return ;
     }
     if (event.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP))
@@ -99,7 +100,8 @@ void Server::handle_event(epoll_event event)
     if (event.events & EPOLLIN)
     {
         std::cout << "fill buffer" << std::endl;
-        _clients[event.data.fd]->fill_buffer();
+        _clients[event.data.fd]->fill_recv_buffer();
+        parse_buffer(_clients[event.data.fd]);
     }
 }
 
@@ -135,7 +137,24 @@ void Server::new_client()
 
         _clients[client_socket] = new Client(client_socket, client_addr);
         std::cout << "New connection from client id : " << client_socket << std::endl;
-        _clients[client_socket]->fill_buffer();
+        _clients[client_socket]->fill_recv_buffer();
     }
 } 
 
+void Server::parse_buffer(Client *client)
+{
+    size_t pos;
+    while ((pos = _recv_buff.find("\r\n")) != std::string::npos)
+    {
+        std::string msg = _recv_buff.substr(0, pos);
+        _recv_buff.erase(0, pos + 2);  
+        
+        if (!msg.empty())
+            parse_msg(msg);
+    }
+}
+
+void Server::parse_msg(std::string msg)
+{
+    
+}

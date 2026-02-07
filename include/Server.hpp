@@ -33,7 +33,7 @@ class Server
         void handle_event(struct epoll_event event);
         void new_client();
         void fill_buffer(int client_socket);
-        void parse_buffer();
+        void parse_buffer(Client * client);
         void parse_msg(std::string msg);
 };
 
