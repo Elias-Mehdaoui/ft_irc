@@ -6,6 +6,7 @@ OBJ_DIR := .obj
 SRC = main.cpp \
       src/Client.cpp  \
       src/Server.cpp  \
+      src/commands.cpp  \
 
 
 

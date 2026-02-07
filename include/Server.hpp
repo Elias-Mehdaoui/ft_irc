@@ -12,6 +12,7 @@
 # define RPL_YOURHOST(nickName) ((std::string)SERVER_NAME + "003 " + nickName + " :" + "This server was created Tue Mars 23 2024 at 22:15:05 CEST" + "\r\n");
 # define RPL_MYINFO(nickName) ((std::string)SERVER_NAME + "004 " + nickName + " " + SERVER_NAME + "\r\n");
 
+
 class Server 
 {
     private :
@@ -20,9 +21,9 @@ class Server
         int _serverSocket;
         sockaddr_in _serverAddress;
         std::map<int, Client *> _clients;
+        std::map<std::string, void (Server::*)(Client *, std::string)> _commands;
         bool _is_running;
         int _epollfd;
-        std::string _recv_buff;
 
     
     public :
@@ -33,8 +34,14 @@ class Server
         void handle_event(struct epoll_event event);
         void new_client();
         void fill_buffer(int client_socket);
-        void parse_buffer(Client * client);
-        void parse_msg(std::string msg);
+        void parse_buffer(int client_socket);
+        void parse_msg(std::string msg, int client_socket);
+
+        // Commands
+        void CAP(Client *client, std::string cmd);
+        void PASS(Client *client, std::string cmd);
+        void NICK(Client *client, std::string cmd);
+        void USER(Client *client, std::string cmd);
 };
 
 
