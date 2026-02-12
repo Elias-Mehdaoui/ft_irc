@@ -40,6 +40,8 @@ class Client
         void clear_recv_buff();
         
         std::string get_recv_buff();
+        std::string get_nickname();
+        std::string get_username();
         int get_status();
 
         void set_password(std::string password);

@@ -12,7 +12,6 @@ Server::Server(std::string port, std::string password): _port(atoi(port.c_str())
 
     }
 
-    std::cout << htons(_port) << std::endl;
     _serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (_serverSocket == -1)
         throw std::runtime_error(std::string("socket :") + ::strerror(errno));
@@ -43,6 +42,7 @@ Server::Server(std::string port, std::string password): _port(atoi(port.c_str())
     _commands["PASS"] = &Server::PASS;
     _commands["NICK"] = &Server::NICK;
     _commands["USER"] = &Server::USER;
+    _commands["PING"] = &Server::PING;
 
     std::cout << "Server listening on port " << _port << std::endl;
 }
@@ -91,7 +91,6 @@ void Server::handle_event(epoll_event event)
 
     if (event.data.fd == _serverSocket)
     {
-        std::cout << "new client" << std::endl;
         new_client();
         return ;
     }
@@ -108,7 +107,6 @@ void Server::handle_event(epoll_event event)
 
     if (event.events & EPOLLIN)
     {
-        std::cout << "fill buffer" << std::endl;
         _clients[event.data.fd]->fill_recv_buffer();
         parse_buffer(event.data.fd);
     }
@@ -169,13 +167,29 @@ void Server::parse_buffer(int client_socket)
 
 void Server::parse_msg(std::string msg, int client_socket)
 {
-    std::cout << msg << std::endl;
-    std::string cmd = msg.substr(0, msg.find(" "));
-    std::map<std::string, void (Server::*)(Client *, std::string)>::iterator it = _commands.find(cmd);
+    std::vector<std::string> tokens;
+    size_t pos;
+    std::string token;
+
+    std::cout << "Receiving :" << msg << std::endl;
+
+    while((pos = msg.find(" ")) != std::string::npos)
+    {
+        token = msg.substr(0, pos);
+        tokens.push_back(token);
+        msg.erase(0, pos + 1);
+    }
+    tokens.push_back(msg);
+
+    std::map<std::string, void (Server::*)(Client *, std::vector<std::string>)>::iterator it = _commands.find(tokens[0]);
+
     if (it != _commands.end())
     {
-        (this->*_commands[cmd.c_str()])(_clients[client_socket], msg);
-        _clients[client_socket]->flush_send();
+        (this->*_commands[tokens[0]])(_clients[client_socket], tokens);
     }
+    else
+        _clients[client_socket]->fill_send_buffer(ERR_UNKNOWNCOMMAND(_clients[client_socket]->get_nickname(), tokens[0]));
+    _clients[client_socket]->flush_send();
+        
 }
 
