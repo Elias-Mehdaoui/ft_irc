@@ -1,5 +1,13 @@
 #include "Server.hpp"
 
+bool	g_end;
+
+void handleSignal(int signum) 
+{
+	if (signum == SIGINT)
+		g_end = true;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -11,6 +19,7 @@ int main(int argc, char **argv)
 
     try 
     {
+        signal(SIGINT, handleSignal);
         Server server(argv[1], argv[2]);
         server.run();
     } 

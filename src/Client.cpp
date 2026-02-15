@@ -34,14 +34,17 @@ void Client::fill_recv_buffer()
 
 void Client::fill_send_buffer(std::string msg)
 {
-    _send_buff += msg;
+    _send_buff += msg + "\r\n";
 }
 
 void Client::flush_send()
 {
-    std::cout << "Sending :" << _send_buff << std::endl;
-    send(_socket, _send_buff.c_str(), _send_buff.size(), 0);
-    _send_buff.erase();
+    if (_send_buff.size() != 0)
+    {
+        std::cout << "Sending :" << _send_buff << std::endl;
+        send(_socket, _send_buff.c_str(), _send_buff.size(), 0);
+        _send_buff.erase();
+    }    
 }
 
 std::string Client::get_recv_buff()
@@ -89,6 +92,16 @@ std::string Client::get_nickname()
 std::string Client::get_username()
 {
     return _username;
+}
+
+std::string Client::get_host() 
+{
+    char buf[INET_ADDRSTRLEN];
+
+    if (inet_ntop(AF_INET, &_addr.sin_addr, buf, sizeof(buf)) == NULL) {
+        return std::string(); 
+    }
+    return std::string(buf);
 }
 
 bool Client::is_registered()

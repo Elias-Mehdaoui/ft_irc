@@ -3,35 +3,47 @@
 
 
 #include "Client.hpp"
+#include "Channel.hpp"
 
 # define EVENTS_MAX 10
 # define SERVER_NAME ":irc.serv.42" 
 
-# define RPL_WELCOME(nickName) ((std::string)SERVER_NAME + " 001 " + nickName + " :Welcome to my irc server, " + nickName + "\r\n")
-# define RPL_YOURID(nickName) ((std::string)SERVER_NAME + " 002 " + nickName + " :" + "Your host is " + SERVER_NAME + ", running version irc-1.0" + "\r\n")
-# define RPL_YOURHOST(nickName) ((std::string)SERVER_NAME + " 003 " + nickName + " :" + "This server was created Tue Mars 23 2024 at 22:15:05 CEST" + "\r\n")
-# define RPL_MYINFO(nickName) ((std::string)SERVER_NAME + " 004 " + nickName + " " + SERVER_NAME + "\r\n")
+# define RPL_WELCOME(nickName) ((std::string)SERVER_NAME + " 001 " + nickName + " :Welcome to my irc server, " + nickName)
+# define RPL_YOURID(nickName) ((std::string)SERVER_NAME + " 002 " + nickName + " :" + "Your host is " + SERVER_NAME + ", running version irc-1.0")
+# define RPL_YOURHOST(nickName) ((std::string)SERVER_NAME + " 003 " + nickName + " :" + "This server was created Tue Mars 23 2024 at 22:15:05 CEST")
+# define RPL_MYINFO(nickName) ((std::string)SERVER_NAME + " 004 " + nickName + " " + SERVER_NAME)
 
-# define ERR_NONICKNAMEGIVEN ((std::string)SERVER_NAME + " 431 * :No nickname given\r\n")
-# define ERR_ERRONEUSNICKNAME(nick) ((std::string)SERVER_NAME + " 432 " + nick + " :Erroneous nickname\r\n")
-# define ERR_NICKNAMEINUSE(nick) ((std::string)SERVER_NAME + " 433 " + nick + " :Nickname is already in use\r\n")
-# define ERR_NEEDMOREPARAMS(cmd) ((std::string)SERVER_NAME + " 461 * " + cmd + " :Not enough parameters\r\n")
-# define ERR_ALREADYREGISTRED ((std::string)SERVER_NAME + " 462 * :You may not reregister\r\n")
-# define ERR_PASSWDMISMATCH ((std::string)SERVER_NAME + " 464 * :Password incorrect\r\n")
-# define ERR_NOTREGISTERED ((std::string)SERVER_NAME + " 451 * :You have not registered\r\n")
-# define ERR_UNKNOWNCOMMAND(nick, cmd) ((std::string)SERVER_NAME + " 421 " + nick + " " + cmd + " :Unknown command\r\n")
+# define CLIENT_PREFIX(nick, user, host) ((std::string)":" + nick + "!" + user + "@" + host)
+# define CLIENT_PRIVMSG(nick, user, host, target, msg) (CLIENT_PREFIX(nick, user, host) + " PRIVMSG " + target + " " + msg)
+
+# define ERR_NONICKNAMEGIVEN ((std::string)SERVER_NAME + " 431 * :No nickname given")
+# define ERR_ERRONEUSNICKNAME(nick) ((std::string)SERVER_NAME + " 432 " + nick + " :Erroneous nickname")
+# define ERR_NICKNAMEINUSE(nick) ((std::string)SERVER_NAME + " 433 " + nick + " :Nickname is already in use")
+# define ERR_NEEDMOREPARAMS(cmd) ((std::string)SERVER_NAME + " 461 * " + cmd + " :Not enough parameters")
+# define ERR_ALREADYREGISTRED ((std::string)SERVER_NAME + " 462 * :You may not reregister")
+# define ERR_PASSWDMISMATCH ((std::string)SERVER_NAME + " 464 * :Password incorrect")
+# define ERR_NOTREGISTERED ((std::string)SERVER_NAME + " 451 * :You have not registered")
+# define ERR_UNKNOWNCOMMAND(nick, cmd) ((std::string)SERVER_NAME + " 421 " + nick + " " + cmd + " :Unknown command")
+# define ERR_BADCHANNAME(channel) ((std::string)SERVER_NAME + " 479 " + channel + " :Bad channel name")
+# define ERR_NORECIPIENT(cmd) ((std::string)SERVER_NAME + " 411 * :No recipient given (" + cmd + ")")
+# define ERR_NOTEXTTOSEND ((std::string)SERVER_NAME + " 412 * :No text to send")
+# define ERR_NOSUCHNICK(nick) ((std::string)SERVER_NAME + " 401 " + nick + " :No such nick/channel")
+
+
 
 class Server 
 {
     private :
         int _port;
-        std::string _password;
-        int _serverSocket;
-        sockaddr_in _serverAddress;
-        std::map<int, Client *> _clients;
-        std::map<std::string, void (Server::*)(Client *, std::vector<std::string>)> _commands;
-        bool _is_running;
         int _epollfd;
+        bool _is_running;
+        int _server_socket;
+        std::string _password;
+        sockaddr_in _server_address;
+
+        std::map<int, Client *> _clients;
+        std::map<std::string, Channel *> _channels;
+        std::map<std::string, void (Server::*)(Client *, std::vector<std::string>)> _commands;
 
     
     public :
@@ -51,6 +63,8 @@ class Server
         void NICK(Client *client, std::vector<std::string> tokens);
         void USER(Client *client, std::vector<std::string> tokens);
         void PING(Client *client, std::vector<std::string> tokens);
+        void JOIN(Client *client, std::vector<std::string> tokens);
+        void PRIVMSG(Client *client, std::vector<std::string> tokens);
 };
 
 

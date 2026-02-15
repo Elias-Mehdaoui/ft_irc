@@ -1,10 +1,9 @@
 #include "Server.hpp"
-#include <cctype>
 
 void Server::CAP(Client *client, std::vector<std::string> tokens)
 {
     (void)tokens;
-    std::string response = SERVER_NAME + std::string(" CAP * LS\r\n");
+    std::string response = SERVER_NAME + std::string(" CAP * LS");
     client->fill_send_buffer(response);
 }
 
@@ -113,5 +112,87 @@ void Server::PING(Client *client, std::vector<std::string> tokens)
 {
     if (tokens.size() < 2)
         return ;
-    client->fill_send_buffer("PONG " + tokens[1] + "\r\n");
+    client->fill_send_buffer("PONG " + tokens[1]);
+}
+
+void Server::JOIN(Client *client, std::vector<std::string> tokens)
+{
+    if (tokens.size() < 2)
+    {
+        client->fill_send_buffer(ERR_NEEDMOREPARAMS("JOIN"));
+        return ;
+    }
+
+    std::string chan_prefix = "#+&!";
+    std::vector<std::string> channels_tab = ft_split(tokens[1], ",");
+
+    if (tokens.size() == 3)
+        std::vector<std::string> passwords = ft_split(tokens[2], ",");
+
+    for (size_t i = 0; i < channels_tab.size(); i++)
+    {
+        if (chan_prefix.find((channels_tab[i])[0]) == std::string::npos || (channels_tab[i]).size() > 50)
+        {
+            client->fill_send_buffer(ERR_BADCHANNAME(channels_tab[i]));
+            return ;
+        }
+
+        if (_channels.find(ft_tolower(channels_tab[i])) != _channels.end())
+        {
+            _channels[ft_tolower(channels_tab[i])]->new_client(client, 0); // verif password et tt
+        }
+        else
+        {
+            _channels[ft_tolower(channels_tab[i])] = new Channel(client, channels_tab[i]);
+        }
+    }
+}
+
+void Server::PRIVMSG(Client *client, std::vector<std::string> tokens)
+{
+    if (tokens.size() == 1)
+    {
+        client->fill_send_buffer(ERR_NORECIPIENT("PRIVMSG"));
+        return ;
+    }
+    
+    if (tokens.size() == 2)
+    {
+        client->fill_send_buffer(ERR_NOTEXTTOSEND);
+        return ; 
+    }
+
+    std::string target = tokens[1];
+    std::string chan_prefix = "#+&!";
+    std::string msg = "";
+
+    for (size_t i = 2; i < tokens.size(); i++)
+    {
+        msg += tokens[i];
+        if (i != tokens.size() - 1)
+            msg += " ";
+    }
+
+    if (chan_prefix.find(target[0]) != std::string::npos)
+    {
+        if (_channels.find(ft_tolower(target)) != _channels.end())
+        {
+            _channels[ft_tolower(target)]->broadcast(client, CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), target, msg));
+        }
+        else
+            client->fill_send_buffer(ERR_NOSUCHNICK(target));
+    }
+    else
+    {
+        std::map<int, Client *>::iterator it;
+        for (it = _clients.begin(); it != _clients.end(); ++it)
+        {
+            if (it->second->get_nickname() == target)
+            {
+                it->second->fill_send_buffer(CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), target, msg));
+                return ;
+            }
+        }
+        client->fill_send_buffer(ERR_NOSUCHNICK(target));
+    }
 }

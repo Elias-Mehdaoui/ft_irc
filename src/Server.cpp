@@ -1,7 +1,12 @@
 #include "Server.hpp"
 
-Server::Server(std::string port, std::string password): _port(atoi(port.c_str())), _password(password), _is_running(false) 
+Server::Server(std::string port, std::string password)
 {
+    _port = atoi(port.c_str());
+    _password = password;
+    _is_running = false;
+
+
     if (_port < 1024 || _port > 65535)
         throw std::invalid_argument("Bad port");
         
@@ -12,30 +17,30 @@ Server::Server(std::string port, std::string password): _port(atoi(port.c_str())
 
     }
 
-    _serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (_serverSocket == -1)
+    _server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (_server_socket == -1)
         throw std::runtime_error(std::string("socket :") + ::strerror(errno));
         
-    int flags = fcntl(_serverSocket, F_GETFL, 0);
+    int flags = fcntl(_server_socket, F_GETFL, 0);
     if (flags == -1)
         throw std::runtime_error(std::string("Get flags :") + ::strerror(errno));
 
-    if (fcntl(_serverSocket, F_SETFL, flags | O_NONBLOCK) == -1)
+    if (fcntl(_server_socket, F_SETFL, flags | O_NONBLOCK) == -1)
         throw std::runtime_error(std::string("Set flags :") + ::strerror(errno));
 
-    _serverAddress.sin_family = AF_INET;
-    _serverAddress.sin_port = htons(_port);
-    _serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    memset(&_serverAddress.sin_zero, 0, sizeof(_serverAddress.sin_zero));
+    _server_address.sin_family = AF_INET;
+    _server_address.sin_port = htons(_port);
+    _server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    memset(&_server_address.sin_zero, 0, sizeof(_server_address.sin_zero));
 
     const int optval = 1;
-    if (setsockopt(_serverSocket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) < 0)
+    if (setsockopt(_server_socket, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) < 0)
         throw std::runtime_error(std::string("setsockopt :") + ::strerror(errno));
 
-    if (bind(_serverSocket, (const sockaddr *)&_serverAddress, sizeof(_serverAddress)) == -1)
+    if (bind(_server_socket, (const sockaddr *)&_server_address, sizeof(_server_address)) == -1)
         throw std::runtime_error(std::string("bind :") + ::strerror(errno));
 
-    if (listen(_serverSocket, 5) == -1)
+    if (listen(_server_socket, 5) == -1)
         throw std::runtime_error(std::string("listen :") + ::strerror(errno));
     
     _commands["CAP"] = &Server::CAP;
@@ -43,6 +48,8 @@ Server::Server(std::string port, std::string password): _port(atoi(port.c_str())
     _commands["NICK"] = &Server::NICK;
     _commands["USER"] = &Server::USER;
     _commands["PING"] = &Server::PING;
+    _commands["JOIN"] = &Server::JOIN;
+    _commands["PRIVMSG"] = &Server::PRIVMSG;
 
     std::cout << "Server listening on port " << _port << std::endl;
 }
@@ -51,16 +58,17 @@ Server::~Server()
 {
     for (std::map<int, Client *>::iterator it = _clients.begin(); it != _clients.end(); ++it)
     {
-        delete(_clients[it->first]);
+        delete it->second;
     }
-    close(_serverSocket);
+    close(_server_socket);
+    close(_epollfd);
 }
 
 void Server::run()
 {
     int nfds;
     struct epoll_event	ev, events[EVENTS_MAX];
-    nfds = _serverSocket;
+    nfds = _server_socket;
     _epollfd = epoll_create1(0);
 
 	if (_epollfd == -1)
@@ -68,9 +76,9 @@ void Server::run()
 
 	memset(&ev, 0, sizeof(ev));
 	ev.events = EPOLLIN;
-	ev.data.fd = _serverSocket;
+	ev.data.fd = _server_socket;
 
-	if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, _serverSocket, &ev) == -1) 
+	if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, _server_socket, &ev) == -1) 
 		throw std::runtime_error("Error: failed to manage sockets");
         
     _is_running = true;
@@ -89,14 +97,17 @@ void Server::run()
 void Server::handle_event(epoll_event event)
 {
 
-    if (event.data.fd == _serverSocket)
+    if (event.data.fd == _server_socket)
     {
         new_client();
         return ;
     }
+
     if (event.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP))
     {
         std::cout << "Client " << event.data.fd << " error/shutdown" << std::endl;
+        delete _clients[event.data.fd];
+        close(event.data.fd);
         return;
     }
 
@@ -118,7 +129,7 @@ void Server::new_client()
     sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
-    while ((client_socket = accept(_serverSocket, (sockaddr *)&client_addr, &addr_len)) > 0)
+    while ((client_socket = accept(_server_socket, (sockaddr *)&client_addr, &addr_len)) > 0)
     {
         if (client_socket == -1)
         {
@@ -165,31 +176,32 @@ void Server::parse_buffer(int client_socket)
     _clients[client_socket]->clear_recv_buff();
 }
 
+bool is_registration_cmd(std::string cmd) {
+    return cmd == "CAP" || cmd == "PASS" || cmd == "NICK" || cmd == "USER";
+}
+
 void Server::parse_msg(std::string msg, int client_socket)
 {
-    std::vector<std::string> tokens;
-    size_t pos;
-    std::string token;
+    std::vector<std::string> tokens = ft_split(msg, " ");
 
     std::cout << "Receiving :" << msg << std::endl;
-
-    while((pos = msg.find(" ")) != std::string::npos)
-    {
-        token = msg.substr(0, pos);
-        tokens.push_back(token);
-        msg.erase(0, pos + 1);
-    }
-    tokens.push_back(msg);
 
     std::map<std::string, void (Server::*)(Client *, std::vector<std::string>)>::iterator it = _commands.find(tokens[0]);
 
     if (it != _commands.end())
     {
-        (this->*_commands[tokens[0]])(_clients[client_socket], tokens);
+        if (is_registration_cmd(tokens[0]) == false && _clients[client_socket]->is_registered() == false)
+        {
+            _clients[client_socket]->fill_send_buffer(ERR_NOTREGISTERED);
+        }
+        else
+        {
+            (this->*_commands[tokens[0]])(_clients[client_socket], tokens);
+        }
     }
     else
         _clients[client_socket]->fill_send_buffer(ERR_UNKNOWNCOMMAND(_clients[client_socket]->get_nickname(), tokens[0]));
+    
     _clients[client_socket]->flush_send();
-        
 }
 

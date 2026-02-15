@@ -7,6 +7,8 @@ SRC = main.cpp \
       src/Client.cpp  \
       src/Server.cpp  \
       src/commands.cpp  \
+      src/Channel.cpp  \
+      src/utils.cpp  \
 
 
 

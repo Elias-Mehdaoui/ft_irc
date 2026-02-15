@@ -10,11 +10,16 @@
 #include <fcntl.h>
 #include <vector>
 #include <map>
+#include <cctype>
 #include <cstdlib>
 #include <unistd.h>
 #include <string>
 #include <errno.h>
 #include <sys/epoll.h>
+#include <signal.h>
+
+
+extern bool	g_end;
 
 class Client
 {
@@ -27,11 +32,12 @@ class Client
         std::string _recv_buff;
         std::string _send_buff;
 
-        int _status; // 0 = didnt give password // 1 = password ok no NICK no USER // 2 = password + NICK ok no USER // 2 registered
+        int _status; // 0 = didnt give password // 1 = password ok no NICK no USER // 2 = password + NICK ok no USER // 3 registered
     
     public:
         Client(int socket, sockaddr_in addr);
         ~Client();
+
         void fill_recv_buffer();
         void fill_send_buffer(std::string msg);
         void flush_send();
@@ -42,6 +48,8 @@ class Client
         std::string get_recv_buff();
         std::string get_nickname();
         std::string get_username();
+        std::string get_host(); 
+
         int get_status();
 
         void set_password(std::string password);
@@ -53,6 +61,9 @@ class Client
 
 };
 
+// utils.cpp
+std::vector<std::string> ft_split(std::string str, std::string delimiter);
+std::string ft_tolower(std::string str);
 
 
 #endif
