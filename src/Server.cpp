@@ -50,6 +50,7 @@ Server::Server(std::string port, std::string password)
     _commands["PING"] = &Server::PING;
     _commands["JOIN"] = &Server::JOIN;
     _commands["PRIVMSG"] = &Server::PRIVMSG;
+    _commands["MODE"] = &Server::MODE;
 
     std::cout << "Server listening on port " << _port << std::endl;
 }

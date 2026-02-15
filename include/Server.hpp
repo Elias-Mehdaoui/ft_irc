@@ -1,5 +1,5 @@
-#ifndef SERVER_HPP
-#define SERVER_HPP
+# ifndef SERVER_HPP
+# define SERVER_HPP
 
 
 #include "Client.hpp"
@@ -8,13 +8,16 @@
 # define EVENTS_MAX 10
 # define SERVER_NAME ":irc.serv.42" 
 
-# define RPL_WELCOME(nickName) ((std::string)SERVER_NAME + " 001 " + nickName + " :Welcome to my irc server, " + nickName)
-# define RPL_YOURID(nickName) ((std::string)SERVER_NAME + " 002 " + nickName + " :" + "Your host is " + SERVER_NAME + ", running version irc-1.0")
-# define RPL_YOURHOST(nickName) ((std::string)SERVER_NAME + " 003 " + nickName + " :" + "This server was created Tue Mars 23 2024 at 22:15:05 CEST")
-# define RPL_MYINFO(nickName) ((std::string)SERVER_NAME + " 004 " + nickName + " " + SERVER_NAME)
+# define RPL_WELCOME(nick_name) ((std::string)SERVER_NAME + " 001 " + nick_name + " :Welcome to my irc server, " + nick_name)
+# define RPL_YOURID(nick_name) ((std::string)SERVER_NAME + " 002 " + nick_name + " :" + "Your host is " + SERVER_NAME + ", running version irc-1.0")
+# define RPL_YOURHOST(nick_name) ((std::string)SERVER_NAME + " 003 " + nick_name + " :" + "This server was created Tue Mars 23 2024 at 22:15:05 CEST")
+# define RPL_MYINFO(nick_name) ((std::string)SERVER_NAME + " 004 " + nick_name + " " + SERVER_NAME)
+
+# define RPL_CHANNELMODEIS(channel, modes) ((std::string)SERVER_NAME + " 324 * " + channel + " " + modes)
 
 # define CLIENT_PREFIX(nick, user, host) ((std::string)":" + nick + "!" + user + "@" + host)
 # define CLIENT_PRIVMSG(nick, user, host, target, msg) (CLIENT_PREFIX(nick, user, host) + " PRIVMSG " + target + " " + msg)
+# define CHANGE_MODE(nick, user, host, channel, msg) (CLIENT_PREFIX(nick, user, host) + " MODE " + channel + " " + msg)
 
 # define ERR_NONICKNAMEGIVEN ((std::string)SERVER_NAME + " 431 * :No nickname given")
 # define ERR_ERRONEUSNICKNAME(nick) ((std::string)SERVER_NAME + " 432 " + nick + " :Erroneous nickname")
@@ -28,8 +31,8 @@
 # define ERR_NORECIPIENT(cmd) ((std::string)SERVER_NAME + " 411 * :No recipient given (" + cmd + ")")
 # define ERR_NOTEXTTOSEND ((std::string)SERVER_NAME + " 412 * :No text to send")
 # define ERR_NOSUCHNICK(nick) ((std::string)SERVER_NAME + " 401 " + nick + " :No such nick/channel")
-
-
+# define ERR_CHANOPRIVSNEEDED(channel) ((std::string)SERVER_NAME + " 482 * " + channel + " :You're not channel operator")
+# define ERR_UNKNOWNMODE(modechar)((std::string)SERVER_NAME + " 472 * " + modechar + " :is unknown mode char")
 
 class Server 
 {
@@ -65,6 +68,7 @@ class Server
         void PING(Client *client, std::vector<std::string> tokens);
         void JOIN(Client *client, std::vector<std::string> tokens);
         void PRIVMSG(Client *client, std::vector<std::string> tokens);
+        void MODE(Client *client, std::vector<std::string> tokens);
 };
 
 

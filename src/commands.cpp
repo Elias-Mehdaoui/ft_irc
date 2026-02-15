@@ -196,3 +196,76 @@ void Server::PRIVMSG(Client *client, std::vector<std::string> tokens)
         client->fill_send_buffer(ERR_NOSUCHNICK(target));
     }
 }
+
+void mode_i(Channel *channel, char sign)
+{
+    if (sign == '+')
+        channel->set_invite_only(true);
+    else
+        channel->set_invite_only(false);
+}
+
+// void mode_t(Channel *channel, char sign)
+// {
+//     if (sign == '+')
+//         channel->set_topic_op_only(true);
+//     else
+//         channel->set_topic_op_only(false);
+// }
+
+// void mode_k()
+
+
+// void mode_o()
+// {
+
+// }
+
+
+void Server::MODE(Client *client, std::vector<std::string> tokens)
+{
+    if (tokens.size() == 1)
+    {
+        client->fill_send_buffer(ERR_NEEDMOREPARAMS("MODE"));
+        return ;
+    }
+
+    if (_channels.find(tokens[1]) == _channels.end())
+        client->fill_send_buffer(ERR_BADCHANNAME(tokens[1]));
+
+    if (tokens.size() == 2)
+    {
+        client->fill_send_buffer(RPL_CHANNELMODEIS(tokens[1], _channels[tokens[1]]->get_modes(client)));
+        return ;
+    }
+
+    if (_channels[tokens[1]]->is_operator(client) == false)
+    {
+        client->fill_send_buffer(ERR_CHANOPRIVSNEEDED(tokens[1]));
+        return ;
+    }
+
+    std::string char_modes = tokens[2];
+
+    if (char_modes[0] != '+' || char_modes[0] != '-')
+    {
+        client->fill_send_buffer(ERR_UNKNOWNMODE(char_modes[0]));
+    }
+
+
+    if (char_modes.size() < 2)
+    {
+        return ;
+    }
+
+    // for (size_t i = 1; i < char_modes.size(); i++)
+    // {
+
+    //     if (char_modes[i] == 'o')
+    //     {
+    //         if (char_modes[0] == '+')
+    //     }
+
+
+    // }
+}

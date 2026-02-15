@@ -1,6 +1,8 @@
 #ifndef Client_HPP_
 #define Client_HPP_
 
+#include "utils.hpp"
+
 #include <iostream>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -17,7 +19,6 @@
 #include <errno.h>
 #include <sys/epoll.h>
 #include <signal.h>
-
 
 extern bool	g_end;
 
@@ -61,9 +62,6 @@ class Client
 
 };
 
-// utils.cpp
-std::vector<std::string> ft_split(std::string str, std::string delimiter);
-std::string ft_tolower(std::string str);
 
 
 #endif

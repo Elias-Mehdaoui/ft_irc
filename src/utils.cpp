@@ -1,5 +1,12 @@
 #include "Client.hpp"
 
+
+std::string ft_to_string(int value) {
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
+}
+
 std::vector<std::string> ft_split(std::string str, std::string delimiter)
 {
     std::vector<std::string> tokens;
