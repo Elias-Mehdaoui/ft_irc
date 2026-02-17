@@ -10,6 +10,8 @@ class Channel
         std::vector<Client *> _invited;
         
         std::string _key;
+        std::string _topic;
+
         bool _topic_op_only;
         bool _invite_only;
         int _user_limit;
@@ -23,7 +25,12 @@ class Channel
         void broadcast(Client *sender, std::string msg);
         void new_client(Client *client, bool is_operator);
         bool is_operator(Client *client);
+        bool is_in_chan(Client *client);
         
+
+        std::string get_topic();
+        void set_topic(std::string topic);
+
         std::string get_key();
         void set_key(std::string key);
         
@@ -37,5 +44,5 @@ class Channel
         void set_user_limit(int user_limit);
 
         std::string get_modes(Client *sender);
-        void set_operator(Client *sender);
+        void set_operator(Client *sender, bool status);
 };

@@ -206,3 +206,14 @@ void Server::parse_msg(std::string msg, int client_socket)
     _clients[client_socket]->flush_send();
 }
 
+Client* Server::get_client(std::string client_name)
+{
+    std::map<int, Client *>::iterator it;
+
+    for (it = _clients.begin(); it != _clients.end(); ++it)
+    {
+        if (it->second->get_nickname() == client_name)
+            return it->second;
+    }
+    return NULL;
+}

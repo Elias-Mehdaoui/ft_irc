@@ -5,6 +5,7 @@ Channel::Channel(Client *client, std::string name)
     _clients[client] = true;
     _name = name;
     _key = "";
+    _topic = "";
     _topic_op_only = false;
     _invite_only = false;
     _user_limit = 0;
@@ -36,14 +37,30 @@ void Channel::broadcast(Client *sender, std::string msg)
     }
 }
 
+bool Channel::is_in_chan(Client *client)
+{
+    return (_clients.find(client) != _clients.end());
+}
+
+
 bool Channel::is_operator(Client *sender)
 {
     return _clients[sender];
 }
 
-void Channel::set_operator(Client *sender)
+void Channel::set_operator(Client *sender, bool status)
 {
-    _clients[sender] = true;
+    _clients[sender] = status;
+}
+
+std::string Channel::get_topic()
+{
+    return _topic;
+}
+
+void Channel::set_topic(std::string topic)
+{
+    _topic = topic;
 }
 
 std::string Channel::get_key()
@@ -102,7 +119,7 @@ std::string Channel::get_modes(Client *sender)
     if (_user_limit)
         modes += " " + ft_to_string(_user_limit);
     
-    if (_key != "" && _clients.find(sender) != _clients.end())
+    if (_key != "" && this->is_in_chan(sender))
         modes += " " + _key;
 
     return modes;

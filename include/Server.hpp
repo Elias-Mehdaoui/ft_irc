@@ -15,9 +15,17 @@
 
 # define RPL_CHANNELMODEIS(channel, modes) ((std::string)SERVER_NAME + " 324 * " + channel + " " + modes)
 
+# define RPL_NOTOPIC(nick, channel) ((std::string)SERVER_NAME + " 331 " + nick + " " + channel + " :No topic is set")
+# define RPL_TOPIC(nick, channel, topic) ((std::string)SERVER_NAME + " 332 " + nick + " " + channel + " :" + topic)
+
+# define RPL_NAMREPLY(nick, channel, names) ((std::string)SERVER_NAME + " 353 " + nick + " = " + channel + " :" + names)
+# define RPL_ENDOFNAMES(nick, channel) ((std::string)SERVER_NAME + " 366 " + nick + " " + channel + " :End of NAMES list")
+
 # define CLIENT_PREFIX(nick, user, host) ((std::string)":" + nick + "!" + user + "@" + host)
+# define JOIN_WELCOME(nick, user, host, channel) (CLIENT_PREFIX(nick, user, host) + " JOIN :" + channel)
 # define CLIENT_PRIVMSG(nick, user, host, target, msg) (CLIENT_PREFIX(nick, user, host) + " PRIVMSG " + target + " " + msg)
 # define CHANGE_MODE(nick, user, host, channel, msg) (CLIENT_PREFIX(nick, user, host) + " MODE " + channel + " " + msg)
+
 
 # define ERR_NONICKNAMEGIVEN ((std::string)SERVER_NAME + " 431 * :No nickname given")
 # define ERR_ERRONEUSNICKNAME(nick) ((std::string)SERVER_NAME + " 432 " + nick + " :Erroneous nickname")
@@ -33,6 +41,9 @@
 # define ERR_NOSUCHNICK(nick) ((std::string)SERVER_NAME + " 401 " + nick + " :No such nick/channel")
 # define ERR_CHANOPRIVSNEEDED(channel) ((std::string)SERVER_NAME + " 482 * " + channel + " :You're not channel operator")
 # define ERR_UNKNOWNMODE(modechar)((std::string)SERVER_NAME + " 472 * " + modechar + " :is unknown mode char")
+# define ERR_USERNOTINCHANNEL(user, channel) ((std::string)SERVER_NAME + " 441 * " + user + " " + channel + " :They aren't on that channel")
+# define ERR_BADCHANNELKEY(channel) ((std::string)SERVER_NAME + " 475 * " + channel + " :Cannot join channel (+k)")
+
 
 class Server 
 {
@@ -59,6 +70,7 @@ class Server
         void fill_buffer(int client_socket);
         void parse_buffer(int client_socket);
         void parse_msg(std::string msg, int client_socket);
+        Client *get_client(std::string client_name);
 
         // Commands
         void CAP(Client *client, std::vector<std::string> tokens);
