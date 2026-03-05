@@ -38,7 +38,7 @@
 # define ERR_BADCHANNAME(channel) ((std::string)SERVER_NAME + " 479 " + channel + " :Bad channel name")
 # define ERR_NORECIPIENT(cmd) ((std::string)SERVER_NAME + " 411 * :No recipient given (" + cmd + ")")
 # define ERR_NOTEXTTOSEND ((std::string)SERVER_NAME + " 412 * :No text to send")
-# define ERR_NOSUCHNICK(nick) ((std::string)SERVER_NAME + " 401 " + nick + " :No such nick/channel")
+# define ERR_NOSUCHNICK(nick, target) ((std::string)SERVER_NAME + " 401 " + nick + " " + target + " :No such nick/channel")
 # define ERR_CHANOPRIVSNEEDED(channel) ((std::string)SERVER_NAME + " 482 * " + channel + " :You're not channel operator")
 # define ERR_UNKNOWNMODE(modechar)((std::string)SERVER_NAME + " 472 * " + modechar + " :is unknown mode char")
 # define ERR_USERNOTINCHANNEL(user, channel) ((std::string)SERVER_NAME + " 441 * " + user + " " + channel + " :They aren't on that channel")
@@ -71,6 +71,7 @@ class Server
         void parse_buffer(int client_socket);
         void parse_msg(std::string msg, int client_socket);
         Client *get_client(std::string client_name);
+        Channel *get_channel(std::string channel);
 
         // Commands
         void CAP(Client *client, std::vector<std::string> tokens);

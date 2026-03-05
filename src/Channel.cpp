@@ -37,6 +37,12 @@ void Channel::broadcast(Client *sender, std::string msg)
     }
 }
 
+std::string Channel::get_name()
+{
+    return _name;
+}
+
+
 bool Channel::is_in_chan(Client *client)
 {
     return (_clients.find(client) != _clients.end());

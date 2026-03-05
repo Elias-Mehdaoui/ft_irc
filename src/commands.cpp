@@ -132,41 +132,47 @@ void Server::JOIN(Client *client, std::vector<std::string> tokens)
 
     for (size_t i = 0; i < channels_tab.size(); i++)
     {
-        if (chan_prefix.find((channels_tab[i])[0]) == std::string::npos || (channels_tab[i]).size() > 50)
-        {
-            client->fill_send_buffer(ERR_BADCHANNAME(channels_tab[i]));
-            return ;
-        }
+        
+        Channel *channel = get_channel(channels_tab[i]);
 
-        if (_channels.find(ft_tolower(channels_tab[i])) != _channels.end())
+        if (channel != NULL)
         {
-            if (_channels[ft_tolower(channels_tab[i])]->get_key() != "")
+            if (channel->get_key() != "")
             {
                 if (i <= passwords.size())
                 {
-                    client->fill_send_buffer(ERR_BADCHANNELKEY(channels_tab[i]));
+                    client->fill_send_buffer(ERR_BADCHANNELKEY(channel->get_name()));
                     return ;
                 }
 
-                if (passwords[i] != _channels[ft_tolower(channels_tab[i])]->get_key())
+                if (passwords[i] != channel->get_key())
                 {
                     client->fill_send_buffer(ERR_BADCHANNELKEY(channels_tab[i]));
                     return ;
                 }
-                _channels[ft_tolower(channels_tab[i])]->new_client(client, 0);
+                channel->new_client(client, 0);
             }
             else
-                _channels[ft_tolower(channels_tab[i])]->new_client(client, 0);
-            _channels[ft_tolower(channels_tab[i])]->broadcast(client, JOIN_WELCOME(client->get_nickname(), client->get_username(), client->get_host(), channels_tab[i]));
+            {
+                channel->new_client(client, 0);
+            }
 
-            if (_channels[ft_tolower(channels_tab[i])]->get_topic() == "")
+            channel->broadcast(client, JOIN_WELCOME(client->get_nickname(), client->get_username(), client->get_host(), channels_tab[i]));
+
+            if (channel->get_topic() == "")
                 client->fill_send_buffer(RPL_NOTOPIC(client->get_nickname(), channels_tab[i]));
             else
-                client->fill_send_buffer(RPL_TOPIC(client->get_nickname(), channels_tab[i], _channels[ft_tolower(channels_tab[i])]->get_topic()));
+                client->fill_send_buffer(RPL_TOPIC(client->get_nickname(), channels_tab[i], channel->get_topic()));
             
         }
         else
         {
+            if (chan_prefix.find((channels_tab[i])[0]) == std::string::npos || (channels_tab[i]).size() > 50)
+            {
+                client->fill_send_buffer(ERR_BADCHANNAME(channels_tab[i]));
+                return ;
+            }
+
             _channels[ft_tolower(channels_tab[i])] = new Channel(client, channels_tab[i]);
         }
     }
@@ -187,7 +193,6 @@ void Server::PRIVMSG(Client *client, std::vector<std::string> tokens)
     }
 
     std::string target = tokens[1];
-    std::string chan_prefix = "#+&!";
     std::string msg = "";
 
     for (size_t i = 2; i < tokens.size(); i++)
@@ -197,27 +202,24 @@ void Server::PRIVMSG(Client *client, std::vector<std::string> tokens)
             msg += " ";
     }
 
-    if (chan_prefix.find(target[0]) != std::string::npos)
+    if (get_channel(target) != NULL)
     {
-        if (_channels.find(ft_tolower(target)) != _channels.end())
-        {
-            _channels[ft_tolower(target)]->broadcast(client, CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), target, msg));
-        }
-        else
-            client->fill_send_buffer(ERR_NOSUCHNICK(target));
+        Channel *channel = get_channel(target);
+        channel->broadcast(client, CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name(), msg));
     }
     else
     {
-        std::map<int, Client *>::iterator it;
-        for (it = _clients.begin(); it != _clients.end(); ++it)
+        Client *target_client = get_client(target);
+
+        if (target_client != NULL)
         {
-            if (it->second->get_nickname() == target)
-            {
-                it->second->fill_send_buffer(CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), target, msg));
-                return ;
-            }
+            target_client->fill_send_buffer(CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), client->get_nickname(), msg));
+            target_client->flush_send();
         }
-        client->fill_send_buffer(ERR_NOSUCHNICK(target));
+        else
+        {
+          client->fill_send_buffer(ERR_NOSUCHNICK(client->get_nickname(), target));
+        }
     }
 }
 
@@ -281,23 +283,24 @@ void Server::MODE(Client *client, std::vector<std::string> tokens)
         return ;
     }
 
-    std::string channel = tokens[1];
 
-    if (_channels.find(ft_tolower(channel)) == _channels.end())
+    Channel *channel = get_channel(tokens[1]);
+
+    if (channel == NULL)
     {
-        client->fill_send_buffer(ERR_BADCHANNAME(channel));
+        client->fill_send_buffer(ERR_BADCHANNAME(tokens[1]));
         return ;
     }
 
     if (tokens.size() == 2)
     {
-        client->fill_send_buffer(RPL_CHANNELMODEIS(channel, _channels[ft_tolower(channel)]->get_modes(client)));
+        client->fill_send_buffer(RPL_CHANNELMODEIS(channel->get_name(), channel->get_modes(client)));
         return ;
     }
 
-    if (_channels[ft_tolower(channel)]->is_operator(client) == false)
+    if (channel->is_operator(client) == false)
     {
-        client->fill_send_buffer(ERR_CHANOPRIVSNEEDED(channel));
+        client->fill_send_buffer(ERR_CHANOPRIVSNEEDED(channel->get_name()));
         return ;
     }
 
@@ -326,7 +329,7 @@ void Server::MODE(Client *client, std::vector<std::string> tokens)
     char_exec['o'] = &char_o;
     char_exec['l'] = &char_l;
 
-        for (size_t i = 1; i < char_modes.size(); i++)
+    for (size_t i = 1; i < char_modes.size(); i++)
     {
 
         if (char_modes[i] == 'o')
@@ -341,13 +344,13 @@ void Server::MODE(Client *client, std::vector<std::string> tokens)
 
             if (user_target == NULL)
             {
-                client->fill_send_buffer(ERR_NOSUCHNICK(tokens[j]));
+                client->fill_send_buffer(ERR_NOSUCHNICK(client->get_nickname(), tokens[j]));
                 return ;
             }
 
-            if (_channels[ft_tolower(channel)]->is_in_chan(user_target) == false)
+            if (channel->is_in_chan(user_target) == false)
             {
-                client->fill_send_buffer(ERR_USERNOTINCHANNEL(tokens[j], channel));
+                client->fill_send_buffer(ERR_USERNOTINCHANNEL(user_target->get_nickname(), channel->get_name()));
                 return ;
             }
 
@@ -370,7 +373,7 @@ void Server::MODE(Client *client, std::vector<std::string> tokens)
     }
     for (size_t i = 1; i < char_modes.size(); i++)
     {
-        char_exec[char_modes[i]](_channels[ft_tolower(channel)], sign, user_target, user_limit, new_key);
+        char_exec[char_modes[i]](channel, sign, user_target, user_limit, new_key);
     }
-    _channels[ft_tolower(channel)]->broadcast(client, RPL_CHANNELMODEIS(channel, _channels[ft_tolower(channel)]->get_modes(client)));
+    channel->broadcast(client, RPL_CHANNELMODEIS(channel->get_name(), channel->get_modes(client)));
 }

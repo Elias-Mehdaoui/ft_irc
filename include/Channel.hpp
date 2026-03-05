@@ -5,7 +5,6 @@ class Channel
 {
     private :
         std::string _name;
-        std::string _topic;
         std::map<Client *, bool> _clients;
         std::vector<Client *> _invited;
         
@@ -45,4 +44,6 @@ class Channel
 
         std::string get_modes(Client *sender);
         void set_operator(Client *sender, bool status);
+
+        std::string get_name();
 };

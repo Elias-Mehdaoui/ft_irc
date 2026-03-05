@@ -217,3 +217,11 @@ Client* Server::get_client(std::string client_name)
     }
     return NULL;
 }
+
+Channel* Server::get_channel(std::string channel)
+{
+
+    if (_channels.find(ft_tolower(channel)) == _channels.end())
+        return NULL;
+    return (_channels[ft_tolower(channel)]);
+}
