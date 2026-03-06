@@ -222,58 +222,6 @@ void Server::PRIVMSG(Client *client, std::vector<std::string> tokens)
     }
 }
 
-void char_i(Channel *channel, char sign, Client *user_target, int user_limit, std::string new_key)
-{
-    (void)user_target;
-    (void)user_limit;
-    (void)new_key;
-    if (sign == '+')
-        channel->set_invite_only(true);
-    else
-        channel->set_invite_only(false);
-}
-
-void char_t(Channel *channel, char sign, Client *user_target, int user_limit, std::string new_key)
-{
-    (void)user_target;
-    (void)user_limit;
-    (void)new_key;
-    if (sign == '+')
-        channel->set_topic_op_only(true);
-    else
-        channel->set_topic_op_only(false);
-}
-
-void char_k(Channel *channel, char sign, Client *user_target, int user_limit, std::string new_key)
-{
-    (void)user_target;
-    (void)user_limit;
-    if (sign == '+')
-        channel->set_key(new_key);
-    else
-        channel->set_key("");
-}
-
-void char_l(Channel *channel, char sign, Client *user_target, int user_limit, std::string new_key)
-{
-    (void)user_target;
-    (void)new_key;
-    if (user_limit < 1)
-        return ;
-    if (sign == '+')
-        channel->set_user_limit(user_limit);
-    else
-        channel->set_user_limit(-1);
-}
-
-void char_o(Channel *channel, char sign, Client *user_target, int user_limit, std::string new_key)
-{
-    (void)user_limit;
-    (void)new_key;
-    
-    channel->set_operator(user_target, (sign == '+'));
-}
-
 void Server::MODE(Client *client, std::vector<std::string> tokens)
 {
     if (tokens.size() == 1)
@@ -321,12 +269,6 @@ void Server::MODE(Client *client, std::vector<std::string> tokens)
     std::string new_key = "";
     int user_limit = -1;
     size_t j = 3;
-    std::map<char, void (*)(Channel *channel, char sign, Client *user_target, int user_limit, std::string new_key)> char_exec;
-    char_exec['i'] = &char_i;
-    char_exec['t'] = &char_t;
-    char_exec['k'] = &char_k;
-    char_exec['o'] = &char_o;
-    char_exec['l'] = &char_l;
 
     for (size_t i = 1; i < char_modes.size(); i++)
     {
@@ -372,7 +314,40 @@ void Server::MODE(Client *client, std::vector<std::string> tokens)
     }
     for (size_t i = 1; i < char_modes.size(); i++)
     {
-        char_exec[char_modes[i]](channel, sign, user_target, user_limit, new_key);
+        if (char_modes[i] == 'i')
+        {
+            channel->set_invite_only(sign == '+');
+        }
+        else if (char_modes[i] == 't')
+        {
+            channel->set_topic_op_only(sign == '+');
+        }
+        else if (char_modes[i] == 'k')
+        {
+            if (sign == '+')
+                channel->set_key(new_key);
+            else
+                channel->set_key("");
+        }
+        else if (char_modes[i] == 'o')
+        {
+            channel->set_operator(user_target, (sign == '+'));
+        }
+        else if (char_modes[i] == 'l')
+        {
+            if (user_limit < 1)
+                continue;
+            
+            if (sign == '+')
+                channel->set_user_limit(user_limit);
+            else
+                channel->set_user_limit(-1);
+        }
+        else
+        {
+            client->fill_send_buffer(ERR_UNKNOWNMODE(char_modes[i]));
+            return ;
+        }
     }
     channel->broadcast(client, RPL_CHANNELMODEIS(channel->get_name(), channel->get_modes(client)));
     client->fill_send_buffer(RPL_CHANNELMODEIS(channel->get_name(), channel->get_modes(client)));
