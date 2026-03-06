@@ -51,6 +51,7 @@ Server::Server(std::string port, std::string password)
     _commands["JOIN"] = &Server::JOIN;
     _commands["PRIVMSG"] = &Server::PRIVMSG;
     _commands["MODE"] = &Server::MODE;
+    _commands["TOPIC"] = &Server::TOPIC;
 
     std::cout << "Server listening on port " << _port << std::endl;
 }
@@ -83,11 +84,17 @@ void Server::run()
 		throw std::runtime_error("Error: failed to manage sockets");
         
     _is_running = true;
-    while (_is_running)
+    while (_is_running && !g_end)
     {
         nfds = epoll_wait(_epollfd, events, EVENTS_MAX, -1); 
         if (nfds == -1)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
             throw std::runtime_error(std::string("select :") + ::strerror(errno));
+        }
         for (int i = 0; i < nfds; ++i)
         {
             handle_event(events[i]);
@@ -111,17 +118,18 @@ void Server::handle_event(epoll_event event)
         close(event.data.fd);
         return;
     }
+    
+    if (event.events & EPOLLIN)
+    {
+        _clients[event.data.fd]->fill_recv_buffer();
+        parse_buffer(event.data.fd);
+    }
 
     if (event.events & EPOLLOUT)
     {
         _clients[event.data.fd]->flush_send();
     }
 
-    if (event.events & EPOLLIN)
-    {
-        _clients[event.data.fd]->fill_recv_buffer();
-        parse_buffer(event.data.fd);
-    }
 }
 
 void Server::new_client() 
@@ -150,9 +158,10 @@ void Server::new_client()
             throw std::runtime_error(std::string("Set flags :") + ::strerror(errno));
 
         struct epoll_event ev;
-        ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+        ev.events = EPOLLIN | EPOLLRDHUP | EPOLLOUT;
         ev.data.fd = client_socket;
-        epoll_ctl(_epollfd, EPOLL_CTL_ADD, client_socket, &ev);
+        if (epoll_ctl(_epollfd, EPOLL_CTL_ADD, client_socket, &ev) == -1)
+            throw std::runtime_error(std::string("epoll_ctl: ") + ::strerror(errno));
 
         _clients[client_socket] = new Client(client_socket, client_addr);
         std::cout << "New connection from client id : " << client_socket << std::endl;
@@ -202,8 +211,6 @@ void Server::parse_msg(std::string msg, int client_socket)
     }
     else
         _clients[client_socket]->fill_send_buffer(ERR_UNKNOWNCOMMAND(_clients[client_socket]->get_nickname(), tokens[0]));
-    
-    _clients[client_socket]->flush_send();
 }
 
 Client* Server::get_client(std::string client_name)

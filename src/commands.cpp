@@ -123,7 +123,6 @@ void Server::JOIN(Client *client, std::vector<std::string> tokens)
         return ;
     }
 
-    std::string chan_prefix = "#+&!";
     std::vector<std::string> channels_tab = ft_split(tokens[1], ",");
     std::vector<std::string> passwords;
 
@@ -139,7 +138,7 @@ void Server::JOIN(Client *client, std::vector<std::string> tokens)
         {
             if (channel->get_key() != "")
             {
-                if (i <= passwords.size())
+                if (i < passwords.size() - 1 || passwords.empty())
                 {
                     client->fill_send_buffer(ERR_BADCHANNELKEY(channel->get_name()));
                     return ;
@@ -147,7 +146,7 @@ void Server::JOIN(Client *client, std::vector<std::string> tokens)
 
                 if (passwords[i] != channel->get_key())
                 {
-                    client->fill_send_buffer(ERR_BADCHANNELKEY(channels_tab[i]));
+                    client->fill_send_buffer(ERR_BADCHANNELKEY(channel->get_name()));
                     return ;
                 }
                 channel->new_client(client, 0);
@@ -157,16 +156,17 @@ void Server::JOIN(Client *client, std::vector<std::string> tokens)
                 channel->new_client(client, 0);
             }
 
-            channel->broadcast(client, JOIN_WELCOME(client->get_nickname(), client->get_username(), client->get_host(), channels_tab[i]));
+            channel->broadcast(client, JOIN_WELCOME(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name()));
 
             if (channel->get_topic() == "")
-                client->fill_send_buffer(RPL_NOTOPIC(client->get_nickname(), channels_tab[i]));
+                client->fill_send_buffer(RPL_NOTOPIC(client->get_nickname(), channel->get_name()));
             else
-                client->fill_send_buffer(RPL_TOPIC(client->get_nickname(), channels_tab[i], channel->get_topic()));
+                client->fill_send_buffer(RPL_TOPIC(client->get_nickname(), channel->get_name(), channel->get_topic()));
             
         }
         else
         {
+            std::string chan_prefix = "#+&!";
             if (chan_prefix.find((channels_tab[i])[0]) == std::string::npos || (channels_tab[i]).size() > 50)
             {
                 client->fill_send_buffer(ERR_BADCHANNAME(channels_tab[i]));
@@ -213,12 +213,11 @@ void Server::PRIVMSG(Client *client, std::vector<std::string> tokens)
 
         if (target_client != NULL)
         {
-            target_client->fill_send_buffer(CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), client->get_nickname(), msg));
-            target_client->flush_send();
+            target_client->fill_send_buffer(CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), target_client->get_nickname(), msg));
         }
         else
         {
-          client->fill_send_buffer(ERR_NOSUCHNICK(client->get_nickname(), target));
+            client->fill_send_buffer(ERR_NOSUCHNICK(client->get_nickname(), target));
         }
     }
 }
@@ -376,4 +375,59 @@ void Server::MODE(Client *client, std::vector<std::string> tokens)
         char_exec[char_modes[i]](channel, sign, user_target, user_limit, new_key);
     }
     channel->broadcast(client, RPL_CHANNELMODEIS(channel->get_name(), channel->get_modes(client)));
+    client->fill_send_buffer(RPL_CHANNELMODEIS(channel->get_name(), channel->get_modes(client)));
 }
+
+void Server::TOPIC(Client *client, std::vector<std::string> tokens)
+{
+    if (tokens.size() == 1)
+    {
+        client->fill_send_buffer(ERR_NEEDMOREPARAMS("TOPIC"));
+        return ;
+    }
+
+    Channel *channel = get_channel(tokens[1]);
+
+    if (channel == NULL)
+    {
+        client->fill_send_buffer(ERR_BADCHANNAME(tokens[1]));
+        return ;
+    }
+    
+    if (!channel->is_in_chan(client))
+    {
+        client->fill_send_buffer(ERR_NOTONCHANNEL(channel->get_name()));
+        return ;
+    }
+
+    if (tokens.size() == 2)
+    {
+        if (channel->get_topic() == "")
+            client->fill_send_buffer(RPL_NOTOPIC(client->get_nickname(), channel->get_name()));
+        else
+            client->fill_send_buffer(RPL_TOPIC(client->get_nickname(), channel->get_name(), channel->get_topic()));
+    }
+    else
+    {
+        if (!channel->get_topic_op_only() || (channel->get_topic_op_only() && channel->is_operator(client)))
+        {
+            std::string new_topic = "";
+
+            for (size_t i = 2; i < tokens.size(); i++)
+            {
+                new_topic += tokens[i];
+                if (i != tokens.size() - 1)
+                    new_topic += " ";
+
+            }
+            channel->set_topic(new_topic);
+            channel->broadcast(client, NEW_TOPIC(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name(), channel->get_topic()));
+            client->fill_send_buffer(NEW_TOPIC(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name(), channel->get_topic()));
+        }
+        else
+        {
+            client->fill_send_buffer(ERR_CHANOPRIVSNEEDED(channel->get_name()));
+        }
+    }
+}
+

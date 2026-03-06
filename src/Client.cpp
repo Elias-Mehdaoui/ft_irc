@@ -39,12 +39,19 @@ void Client::fill_send_buffer(std::string msg)
 
 void Client::flush_send()
 {
-    if (_send_buff.size() != 0)
+    while (!_send_buff.empty())
     {
-        std::cout << "Sending :" << _send_buff << std::endl;
-        send(_socket, _send_buff.c_str(), _send_buff.size(), 0);
-        _send_buff.erase();
-    }    
+        ssize_t n = send(_socket, _send_buff.c_str(), _send_buff.size(), 0);
+        std::cout << "Sending :" << _send_buff.substr(0, n) << std::endl;
+        if (n > 0)
+        {
+            _send_buff.erase(0, n);
+        }
+        else
+        {
+            break;
+        }
+    } 
 }
 
 std::string Client::get_recv_buff()

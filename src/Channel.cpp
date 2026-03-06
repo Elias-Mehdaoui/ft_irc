@@ -32,7 +32,6 @@ void Channel::broadcast(Client *sender, std::string msg)
         if (it->first != sender)
         {
             it->first->fill_send_buffer(msg);
-            it->first->flush_send();
         }
     }
 }

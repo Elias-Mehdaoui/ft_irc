@@ -16,7 +16,7 @@
 # define RPL_CHANNELMODEIS(channel, modes) ((std::string)SERVER_NAME + " 324 * " + channel + " " + modes)
 
 # define RPL_NOTOPIC(nick, channel) ((std::string)SERVER_NAME + " 331 " + nick + " " + channel + " :No topic is set")
-# define RPL_TOPIC(nick, channel, topic) ((std::string)SERVER_NAME + " 332 " + nick + " " + channel + " :" + topic)
+# define RPL_TOPIC(nick, channel, topic) ((std::string)SERVER_NAME + " 332 " + nick + " " + channel + " " + topic)
 
 # define RPL_NAMREPLY(nick, channel, names) ((std::string)SERVER_NAME + " 353 " + nick + " = " + channel + " :" + names)
 # define RPL_ENDOFNAMES(nick, channel) ((std::string)SERVER_NAME + " 366 " + nick + " " + channel + " :End of NAMES list")
@@ -24,6 +24,7 @@
 # define CLIENT_PREFIX(nick, user, host) ((std::string)":" + nick + "!" + user + "@" + host)
 # define JOIN_WELCOME(nick, user, host, channel) (CLIENT_PREFIX(nick, user, host) + " JOIN :" + channel)
 # define CLIENT_PRIVMSG(nick, user, host, target, msg) (CLIENT_PREFIX(nick, user, host) + " PRIVMSG " + target + " " + msg)
+# define NEW_TOPIC(nick, user, host, channel, topic) (CLIENT_PREFIX(nick, user, host) + " TOPIC " + channel + " " + topic)
 # define CHANGE_MODE(nick, user, host, channel, msg) (CLIENT_PREFIX(nick, user, host) + " MODE " + channel + " " + msg)
 
 
@@ -39,9 +40,10 @@
 # define ERR_NORECIPIENT(cmd) ((std::string)SERVER_NAME + " 411 * :No recipient given (" + cmd + ")")
 # define ERR_NOTEXTTOSEND ((std::string)SERVER_NAME + " 412 * :No text to send")
 # define ERR_NOSUCHNICK(nick, target) ((std::string)SERVER_NAME + " 401 " + nick + " " + target + " :No such nick/channel")
-# define ERR_CHANOPRIVSNEEDED(channel) ((std::string)SERVER_NAME + " 482 * " + channel + " :You're not channel operator")
-# define ERR_UNKNOWNMODE(modechar)((std::string)SERVER_NAME + " 472 * " + modechar + " :is unknown mode char")
+# define ERR_CHANOPRIVSNEEDED(channel) ((std::string)SERVER_NAME + " 482 " + channel + " :You're not channel operator")
+# define ERR_UNKNOWNMODE(modechar)((std::string)SERVER_NAME + " 472 " + modechar + " :is unknown mode char")
 # define ERR_USERNOTINCHANNEL(user, channel) ((std::string)SERVER_NAME + " 441 * " + user + " " + channel + " :They aren't on that channel")
+# define ERR_NOTONCHANNEL(channel) ((std::string)SERVER_NAME + " 442 " + channel + " :You're not on that channel")
 # define ERR_BADCHANNELKEY(channel) ((std::string)SERVER_NAME + " 475 * " + channel + " :Cannot join channel (+k)")
 
 
@@ -82,6 +84,7 @@ class Server
         void JOIN(Client *client, std::vector<std::string> tokens);
         void PRIVMSG(Client *client, std::vector<std::string> tokens);
         void MODE(Client *client, std::vector<std::string> tokens);
+        void TOPIC(Client *client, std::vector<std::string> tokens);
 };
 
 
