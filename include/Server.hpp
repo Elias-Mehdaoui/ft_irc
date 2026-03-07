@@ -27,6 +27,9 @@
 # define NEW_TOPIC(nick, user, host, channel, topic) (CLIENT_PREFIX(nick, user, host) + " TOPIC " + channel + " " + topic)
 # define CHANGE_MODE(nick, user, host, channel, msg) (CLIENT_PREFIX(nick, user, host) + " MODE " + channel + " " + msg)
 
+# define RPL_KICK(nick, user, host, channel, target, comment) (CLIENT_PREFIX(nick, user, host)  + " KICK " + channel + " " + target + " " + comment)
+# define RPL_INVITE(nick, user, host, target, channel) (CLIENT_PREFIX(nick, user, host) + " INVITE " + target + " :" + channel)
+# define RPL_INVITING(inviterNick, targetNick, channel) ((std::string)SERVER_NAME + " 341 " + inviterNick + " " + targetNick + " " + channel + " :Inviting")
 
 # define ERR_NONICKNAMEGIVEN ((std::string)SERVER_NAME + " 431 * :No nickname given")
 # define ERR_ERRONEUSNICKNAME(nick) ((std::string)SERVER_NAME + " 432 " + nick + " :Erroneous nickname")
@@ -42,10 +45,12 @@
 # define ERR_NOSUCHNICK(nick, target) ((std::string)SERVER_NAME + " 401 " + nick + " " + target + " :No such nick/channel")
 # define ERR_CHANOPRIVSNEEDED(channel) ((std::string)SERVER_NAME + " 482 " + channel + " :You're not channel operator")
 # define ERR_UNKNOWNMODE(modechar)((std::string)SERVER_NAME + " 472 " + modechar + " :is unknown mode char")
-# define ERR_USERNOTINCHANNEL(user, channel) ((std::string)SERVER_NAME + " 441 * " + user + " " + channel + " :They aren't on that channel")
+# define ERR_USERNOTINCHANNEL(user, channel) ((std::string)SERVER_NAME + " 441 " + user + " " + channel + " :They aren't on that channel")
 # define ERR_NOTONCHANNEL(channel) ((std::string)SERVER_NAME + " 442 " + channel + " :You're not on that channel")
 # define ERR_BADCHANNELKEY(channel) ((std::string)SERVER_NAME + " 475 * " + channel + " :Cannot join channel (+k)")
-
+# define ERR_NOSUCHCHANNEL(nick, channel) ((std::string)SERVER_NAME + " 403 " + nick + " " + channel + " :No such channel")
+# define ERR_USERONCHANNEL(senderNick, targetNick, channel) ((std::string)SERVER_NAME + " 443 " + senderNick + " " + targetNick + " " + channel + " :is already on channel")
+# define ERR_INVITEONLYCHAN(client, channel) ((std::string)SERVER_NAME + " 473 " + client + " " + channel + " :Cannot join channel (+i)")
 
 class Server 
 {
@@ -85,6 +90,8 @@ class Server
         void PRIVMSG(Client *client, std::vector<std::string> tokens);
         void MODE(Client *client, std::vector<std::string> tokens);
         void TOPIC(Client *client, std::vector<std::string> tokens);
+        void KICK(Client *client, std::vector<std::string> tokens);
+        void INVITE(Client *client, std::vector<std::string> tokens);
 };
 
 

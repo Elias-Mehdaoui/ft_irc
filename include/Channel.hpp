@@ -22,9 +22,12 @@ class Channel
         ~Channel();
 
         void broadcast(Client *sender, std::string msg);
+        void kick_client(Client *client);
         void new_client(Client *client, bool is_operator);
         bool is_operator(Client *client);
         bool is_in_chan(Client *client);
+        void invite(Client *client);
+        bool is_invited(Client *client);
         
 
         std::string get_topic();

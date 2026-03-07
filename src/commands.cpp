@@ -136,6 +136,12 @@ void Server::JOIN(Client *client, std::vector<std::string> tokens)
 
         if (channel != NULL)
         {
+            if (channel->get_invite_only() && !channel->is_invited(client))
+            {
+                client->fill_send_buffer(ERR_INVITEONLYCHAN(client->get_nickname(), channel->get_name()));
+                return ;
+            }
+
             if (channel->get_key() != "")
             {
                 if (i < passwords.size() - 1 || passwords.empty())
@@ -291,7 +297,7 @@ void Server::MODE(Client *client, std::vector<std::string> tokens)
 
             if (channel->is_in_chan(user_target) == false)
             {
-                client->fill_send_buffer(ERR_USERNOTINCHANNEL(user_target->get_nickname(), channel->get_name()));
+                client->fill_send_buffer(ERR_USERNOTINCHANNEL(user_target->get_username(), channel->get_name()));
                 return ;
             }
 
@@ -406,3 +412,128 @@ void Server::TOPIC(Client *client, std::vector<std::string> tokens)
     }
 }
 
+void Server::KICK(Client *client, std::vector<std::string> tokens)
+{
+    if (tokens.size() < 3)
+    {
+        client->fill_send_buffer(ERR_NEEDMOREPARAMS("KICK"));
+        return ;
+    }
+
+
+    std::vector<std::string> channels_tab = ft_split(tokens[1], ",");
+    std::vector<std::string> targets_tab = ft_split(tokens[2], ",");
+
+    if (channels_tab.size() != 1 && targets_tab.size() != channels_tab.size())
+    {
+        client->fill_send_buffer(ERR_NEEDMOREPARAMS("KICK"));
+        return ;
+    }
+
+    std::string comment;
+
+    if (tokens.size() == 3)
+    {
+        comment = client->get_nickname();
+    }
+    else
+    {
+        for (size_t i = 3; i < tokens.size(); i++)
+        {
+            comment += tokens[i];
+            if (i != tokens.size() - 1)
+                comment += " ";
+        }  
+    }
+    
+
+    Channel *channel = get_channel(channels_tab[0]);
+    Client *target;
+
+    for (size_t i = 0; i < targets_tab.size(); i++)
+    {
+
+        target = get_client(targets_tab[i]);
+
+        if (channels_tab.size() != 1)
+        {
+            channel = get_channel(channels_tab[i]);
+        }
+
+        if (channel == NULL)
+        {
+            client->fill_send_buffer(ERR_NOSUCHCHANNEL(client->get_nickname(), tokens[1]));
+            return ;
+        }
+        
+        if (!channel->is_in_chan(client))
+        {
+            client->fill_send_buffer(ERR_NOTONCHANNEL(channel->get_name()));
+            return ;
+        }
+    
+        if (!channel->is_operator(client))
+        {
+            client->fill_send_buffer(ERR_CHANOPRIVSNEEDED(channel->get_name()));
+            return ;
+        }
+
+        if (!channel->is_in_chan(target))
+        {
+            client->fill_send_buffer(ERR_USERNOTINCHANNEL(target->get_username(), channel->get_name()));
+            return ;
+        }
+
+        channel->broadcast(client, RPL_KICK(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name(), target->get_nickname(), comment));
+        client->fill_send_buffer(RPL_KICK(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name(), target->get_nickname(), comment));
+        channel->kick_client(target);
+    }
+}
+
+void Server::INVITE(Client *client, std::vector<std::string> tokens)
+{
+    if (tokens.size() < 3)
+    {
+        client->fill_send_buffer(ERR_NEEDMOREPARAMS("INVITE"));
+        return ;
+    }
+
+    Client *target = get_client(tokens[1]);
+
+    if (target == NULL)
+    {
+        client->fill_send_buffer(ERR_NOSUCHNICK(client->get_nickname(), tokens[1]));
+        return ;
+    }
+
+    Channel *channel = get_channel(tokens[2]);
+
+    if (channel == NULL)
+    {
+        target->fill_send_buffer(RPL_INVITE(client->get_nickname(), client->get_username(), client->get_host(), target->get_nickname(), tokens[2]));
+        client->fill_send_buffer(RPL_INVITING(client->get_nickname(), target->get_nickname(), tokens[2]));
+        return ;
+    }
+
+    if (!channel->is_in_chan(client))
+    {
+        client->fill_send_buffer(ERR_NOTONCHANNEL(channel->get_name()));
+        return ;
+    }
+
+    if (channel->get_invite_only() && !channel->is_operator(client))
+    {
+        client->fill_send_buffer(ERR_CHANOPRIVSNEEDED(channel->get_name()));
+        return ;
+    }
+
+    if (channel->is_in_chan(target))
+    {
+        client->fill_send_buffer(ERR_USERONCHANNEL(client->get_nickname(), target->get_nickname(), channel->get_name()));
+        return ;
+    }
+
+    channel->invite(target);
+    target->fill_send_buffer(RPL_INVITE(client->get_nickname(), client->get_username(), client->get_host(), target->get_nickname(), channel->get_name()));
+    client->fill_send_buffer(RPL_INVITING(client->get_nickname(), target->get_nickname(), channel->get_name()));
+}

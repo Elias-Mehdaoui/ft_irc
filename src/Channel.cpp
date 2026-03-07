@@ -129,3 +129,28 @@ std::string Channel::get_modes(Client *sender)
 
     return modes;
 }
+
+
+void Channel::kick_client(Client *client)
+{
+    _clients.erase(client);
+}
+
+
+void Channel::invite(Client *client)
+{
+    _invited.push_back(client);
+}
+
+bool Channel::is_invited(Client *client)
+{
+    std::vector<Client *>::iterator it;
+
+    for (it = _invited.begin(); it != _invited.end(); ++it)
+    {
+        if (*it == client)
+            return true;
+    }
+
+    return false;
+}

@@ -52,6 +52,8 @@ Server::Server(std::string port, std::string password)
     _commands["PRIVMSG"] = &Server::PRIVMSG;
     _commands["MODE"] = &Server::MODE;
     _commands["TOPIC"] = &Server::TOPIC;
+    _commands["KICK"] = &Server::KICK;
+    _commands["INVITE"] = &Server::INVITE;
 
     std::cout << "Server listening on port " << _port << std::endl;
 }
