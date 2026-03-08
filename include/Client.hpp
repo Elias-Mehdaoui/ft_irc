@@ -11,6 +11,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <vector>
+#include <set>
 #include <map>
 #include <cctype>
 #include <cstdlib>
@@ -44,12 +45,13 @@ class Client
         void flush_send();
         void parse_msg(std::string msg);
         bool is_registered();
-        void clear_recv_buff();
+        void clear_recv_buff(size_t begin, size_t end);
         
         std::string get_recv_buff();
         std::string get_nickname();
         std::string get_username();
         std::string get_host(); 
+        int get_socket(); 
 
         int get_status();
 

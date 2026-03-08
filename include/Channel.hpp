@@ -29,7 +29,9 @@ class Channel
         void invite(Client *client);
         bool is_invited(Client *client);
         
-
+        std::map<Client *, bool> get_clients();
+        
+        int get_user_size();
         std::string get_topic();
         void set_topic(std::string topic);
 

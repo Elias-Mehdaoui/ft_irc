@@ -54,16 +54,28 @@ Server::Server(std::string port, std::string password)
     _commands["TOPIC"] = &Server::TOPIC;
     _commands["KICK"] = &Server::KICK;
     _commands["INVITE"] = &Server::INVITE;
+    _commands["PART"] = &Server::PART;
+    _commands["QUIT"] = &Server::QUIT;
 
     std::cout << "Server listening on port " << _port << std::endl;
 }
 
 Server::~Server()
 {
-    for (std::map<int, Client *>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+    std::map<int, Client *>::iterator it;
+
+    for (it = _clients.begin(); it != _clients.end(); ++it)
     {
         delete it->second;
     }
+
+    std::map<std::string, Channel *>::iterator it_chan;
+
+    for (it_chan = _channels.begin(); it_chan != _channels.end(); ++it_chan)
+    {
+        delete it_chan->second;
+    }
+
     close(_server_socket);
     close(_epollfd);
 }
@@ -113,25 +125,25 @@ void Server::handle_event(epoll_event event)
         return ;
     }
 
-    if (event.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP))
-    {
-        std::cout << "Client " << event.data.fd << " error/shutdown" << std::endl;
-        delete _clients[event.data.fd];
-        close(event.data.fd);
-        return;
-    }
-    
     if (event.events & EPOLLIN)
     {
         _clients[event.data.fd]->fill_recv_buffer();
         parse_buffer(event.data.fd);
     }
-
+    
     if (event.events & EPOLLOUT)
     {
-        _clients[event.data.fd]->flush_send();
+        if (_clients.find(event.data.fd) != _clients.end())
+            _clients[event.data.fd]->flush_send();
     }
-
+    
+    if (event.events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP))
+    {
+        std::cout << "Client " << event.data.fd << " error/shutdown" << std::endl;
+        handle_quit(_clients[event.data.fd], "Connection Error");
+        return;
+    }
+    
 }
 
 void Server::new_client() 
@@ -181,11 +193,11 @@ void Server::parse_buffer(int client_socket)
     {
         msg = recv_buffer.substr(0, pos);
         recv_buffer.erase(0, pos + 2);
+        _clients[client_socket]->clear_recv_buff(0, pos + 2);
 
         if (!msg.empty())
             parse_msg(msg, client_socket);
     }
-    _clients[client_socket]->clear_recv_buff();
 }
 
 bool is_registration_cmd(std::string cmd) {
@@ -233,4 +245,50 @@ Channel* Server::get_channel(std::string channel)
     if (_channels.find(ft_tolower(channel)) == _channels.end())
         return NULL;
     return (_channels[ft_tolower(channel)]);
+}
+
+void Server::handle_quit(Client *client, std::string msg)
+{
+    std::set<Client *> targets;
+    std::vector<Channel *> channels;
+    std::map<std::string, Channel *>::iterator it;
+    Channel *channel;
+    std::map<Client *, bool>::iterator it_clients;
+
+
+    for (it = _channels.begin(); it != _channels.end(); ++it)
+    {
+        channel = it->second;
+        if (channel->is_in_chan(client))
+        {
+            std::map<Client *, bool> list_clients = channel->get_clients();
+            channels.push_back(channel);
+            for (it_clients = list_clients.begin(); it_clients != list_clients.end(); ++it_clients)
+            {
+                if (it_clients->first != client)
+                    targets.insert(it_clients->first);
+            }
+        }
+    }
+
+    client->fill_send_buffer(RPL_ERROR(msg));
+    std::set<Client *>::iterator it_targets;
+
+    for (it_targets = targets.begin(); it_targets != targets.end(); ++it_targets)
+    {
+        (*it_targets)->fill_send_buffer(RPL_QUIT(client->get_nickname(), client->get_username(), client->get_host(), msg));
+    }
+
+    std::vector<Channel *>::iterator it_channels;
+    for (it_channels = channels.begin(); it_channels != channels.end(); ++it_channels)
+    {
+        channel->kick_client(client);
+    }
+    
+    int socket = client->get_socket();
+
+    epoll_ctl(_epollfd, EPOLL_CTL_DEL, socket, NULL);
+    close(socket);
+    delete _clients[socket];
+    _clients.erase(socket);
 }

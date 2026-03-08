@@ -30,7 +30,13 @@
 # define RPL_KICK(nick, user, host, channel, target, comment) (CLIENT_PREFIX(nick, user, host)  + " KICK " + channel + " " + target + " " + comment)
 # define RPL_INVITE(nick, user, host, target, channel) (CLIENT_PREFIX(nick, user, host) + " INVITE " + target + " :" + channel)
 # define RPL_INVITING(inviterNick, targetNick, channel) ((std::string)SERVER_NAME + " 341 " + inviterNick + " " + targetNick + " " + channel + " :Inviting")
+# define RPL_PART(nick, user, host, channel) (CLIENT_PREFIX(nick, user, host) + " PART " + channel)
+# define RPL_PART_MSG(nick, user, host, channel, message) (CLIENT_PREFIX(nick, user, host) + " PART " + channel + " " + message)
+# define RPL_QUIT(nick, user, host, message) (CLIENT_PREFIX(nick, user, host) + " QUIT " + message)
+# define RPL_ERROR(message) ((std::string)"ERROR " + message)
 
+
+# define ERR_CHANNELISFULL(clientNick, channel) ((std::string)SERVER_NAME + " 471 " + clientNick + " " + channel + " :Cannot join channel (+l)")
 # define ERR_NONICKNAMEGIVEN ((std::string)SERVER_NAME + " 431 * :No nickname given")
 # define ERR_ERRONEUSNICKNAME(nick) ((std::string)SERVER_NAME + " 432 " + nick + " :Erroneous nickname")
 # define ERR_NICKNAMEINUSE(nick) ((std::string)SERVER_NAME + " 433 " + nick + " :Nickname is already in use")
@@ -46,7 +52,7 @@
 # define ERR_CHANOPRIVSNEEDED(channel) ((std::string)SERVER_NAME + " 482 " + channel + " :You're not channel operator")
 # define ERR_UNKNOWNMODE(modechar)((std::string)SERVER_NAME + " 472 " + modechar + " :is unknown mode char")
 # define ERR_USERNOTINCHANNEL(user, channel) ((std::string)SERVER_NAME + " 441 " + user + " " + channel + " :They aren't on that channel")
-# define ERR_NOTONCHANNEL(channel) ((std::string)SERVER_NAME + " 442 " + channel + " :You're not on that channel")
+# define ERR_NOTONCHANNEL(nick, channel) ((std::string)SERVER_NAME + " 442 " + nick + " " + channel + " :You're not on that channel")
 # define ERR_BADCHANNELKEY(channel) ((std::string)SERVER_NAME + " 475 * " + channel + " :Cannot join channel (+k)")
 # define ERR_NOSUCHCHANNEL(nick, channel) ((std::string)SERVER_NAME + " 403 " + nick + " " + channel + " :No such channel")
 # define ERR_USERONCHANNEL(senderNick, targetNick, channel) ((std::string)SERVER_NAME + " 443 " + senderNick + " " + targetNick + " " + channel + " :is already on channel")
@@ -79,6 +85,7 @@ class Server
         void parse_msg(std::string msg, int client_socket);
         Client *get_client(std::string client_name);
         Channel *get_channel(std::string channel);
+        void handle_quit(Client* client, std::string msg);
 
         // Commands
         void CAP(Client *client, std::vector<std::string> tokens);
@@ -92,6 +99,8 @@ class Server
         void TOPIC(Client *client, std::vector<std::string> tokens);
         void KICK(Client *client, std::vector<std::string> tokens);
         void INVITE(Client *client, std::vector<std::string> tokens);
+        void PART(Client *client, std::vector<std::string> tokens);
+        void QUIT(Client *client, std::vector<std::string> tokens);
 };
 
 

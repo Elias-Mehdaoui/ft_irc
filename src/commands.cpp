@@ -142,6 +142,12 @@ void Server::JOIN(Client *client, std::vector<std::string> tokens)
                 return ;
             }
 
+            if (channel->get_user_limit() != -1 && channel->get_user_limit() < channel->get_user_size() + 1)
+            {
+                client->fill_send_buffer(ERR_CHANNELISFULL(client->get_nickname(), channel->get_name()));
+                return ;
+            }
+
             if (channel->get_key() != "")
             {
                 if (i < passwords.size() - 1 || passwords.empty())
@@ -163,6 +169,7 @@ void Server::JOIN(Client *client, std::vector<std::string> tokens)
             }
 
             channel->broadcast(client, JOIN_WELCOME(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name()));
+            client->fill_send_buffer(JOIN_WELCOME(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name()));
 
             if (channel->get_topic() == "")
                 client->fill_send_buffer(RPL_NOTOPIC(client->get_nickname(), channel->get_name()));
@@ -211,6 +218,13 @@ void Server::PRIVMSG(Client *client, std::vector<std::string> tokens)
     if (get_channel(target) != NULL)
     {
         Channel *channel = get_channel(target);
+
+        if (!channel->is_in_chan(client))
+        {
+            client->fill_send_buffer(ERR_NOTONCHANNEL(client->get_nickname(), channel->get_name()));
+            return ;
+        }
+        
         channel->broadcast(client, CLIENT_PRIVMSG(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name(), msg));
     }
     else
@@ -377,7 +391,7 @@ void Server::TOPIC(Client *client, std::vector<std::string> tokens)
     
     if (!channel->is_in_chan(client))
     {
-        client->fill_send_buffer(ERR_NOTONCHANNEL(channel->get_name()));
+        client->fill_send_buffer(ERR_NOTONCHANNEL(client->get_nickname() , channel->get_name()));
         return ;
     }
 
@@ -468,7 +482,7 @@ void Server::KICK(Client *client, std::vector<std::string> tokens)
         
         if (!channel->is_in_chan(client))
         {
-            client->fill_send_buffer(ERR_NOTONCHANNEL(channel->get_name()));
+            client->fill_send_buffer(ERR_NOTONCHANNEL(client->get_nickname(), channel->get_name()));
             return ;
         }
     
@@ -517,7 +531,7 @@ void Server::INVITE(Client *client, std::vector<std::string> tokens)
 
     if (!channel->is_in_chan(client))
     {
-        client->fill_send_buffer(ERR_NOTONCHANNEL(channel->get_name()));
+        client->fill_send_buffer(ERR_NOTONCHANNEL(client->get_nickname(), channel->get_name()));
         return ;
     }
 
@@ -536,4 +550,79 @@ void Server::INVITE(Client *client, std::vector<std::string> tokens)
     channel->invite(target);
     target->fill_send_buffer(RPL_INVITE(client->get_nickname(), client->get_username(), client->get_host(), target->get_nickname(), channel->get_name()));
     client->fill_send_buffer(RPL_INVITING(client->get_nickname(), target->get_nickname(), channel->get_name()));
+}
+
+void Server::PART(Client *client, std::vector<std::string> tokens)
+{
+    if (tokens.size() < 2)
+    {
+        client->fill_send_buffer(ERR_NEEDMOREPARAMS("PART"));
+        return ;
+    }
+    
+    std::string comment;
+
+    if (tokens.size() > 2)
+    {
+        for (size_t i = 2; i < tokens.size(); i++)
+        {
+            comment += tokens[i];
+            if (i != tokens.size() - 1)
+                comment += " ";
+        }  
+    }
+
+    std::vector<std::string> channels_tab = ft_split(tokens[1], ",");
+    Channel *channel;
+
+    for (size_t i = 0; i < channels_tab.size(); i++)
+    {
+        channel = get_channel(channels_tab[i]);
+        
+        if (channel == NULL)
+        {
+            client->fill_send_buffer(ERR_NOSUCHCHANNEL(client->get_nickname(), channels_tab[i]));
+            return ;
+        }
+
+        if (!channel->is_in_chan(client))
+        {
+            client->fill_send_buffer(ERR_NOTONCHANNEL(client->get_nickname(), channel->get_name()));
+            return ;
+        }
+
+        if (comment.empty())
+        {
+            channel->broadcast(client, RPL_PART(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name()));
+            client->fill_send_buffer(RPL_PART(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name()));
+        }
+        else
+        {
+            channel->broadcast(client, RPL_PART_MSG(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name(), comment));
+            client->fill_send_buffer(RPL_PART_MSG(client->get_nickname(), client->get_username(), client->get_host(), channel->get_name(), comment));
+        }
+        channel->kick_client(client);
+    }
+
+}
+
+void Server::QUIT(Client *client, std::vector<std::string> tokens)
+{
+    std::string msg;
+    
+    if (tokens.size() == 1)
+    {
+        msg = ":bye";
+    }
+    else
+    {
+        for (size_t i = 1; i < tokens.size(); i++)
+        {
+            msg += tokens[i];
+            if (i != tokens.size() - 1)
+                msg += " ";
+        }  
+    }
+
+    handle_quit(client, msg);
 }

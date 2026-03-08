@@ -116,8 +116,13 @@ bool Client::is_registered()
     return _status == 3;
 }
 
-void Client::clear_recv_buff()
+void Client::clear_recv_buff(size_t begin, size_t end)
 {
-    _recv_buff.clear();
+    _recv_buff.erase(begin, end);
 }
+
+int Client::get_socket()
+{
+    return _socket;
+} 
 

@@ -33,8 +33,12 @@ $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@$(COMPILE) $(CXXFLAGS) -c $< -o $@
 
-clean:
+clean :
 	rm -rf $(OBJ_DIR)
-	rm -f $(EXEC)
 
-re: clean all
+fclean: clean
+	rm -rf $(NAME)
+	
+re : fclean all
+
+.PHONY: all clean fclean re
