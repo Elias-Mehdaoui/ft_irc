@@ -10,7 +10,7 @@
 
 # define RPL_WELCOME(nick_name) ((std::string)SERVER_NAME + " 001 " + nick_name + " :Welcome to my irc server, " + nick_name)
 # define RPL_YOURID(nick_name) ((std::string)SERVER_NAME + " 002 " + nick_name + " :" + "Your host is " + SERVER_NAME + ", running version irc-1.0")
-# define RPL_YOURHOST(nick_name) ((std::string)SERVER_NAME + " 003 " + nick_name + " :" + "This server was created Tue Mars 23 2024 at 22:15:05 CEST")
+# define RPL_YOURHOST(nick_name) ((std::string)SERVER_NAME + " 003 " + nick_name + " :" + "This server was created Sat March 7 2026 at 22:15:05 CEST")
 # define RPL_MYINFO(nick_name) ((std::string)SERVER_NAME + " 004 " + nick_name + " " + SERVER_NAME)
 
 # define RPL_CHANNELMODEIS(channel, modes) ((std::string)SERVER_NAME + " 324 * " + channel + " " + modes)
